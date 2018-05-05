@@ -111,3 +111,4 @@ sample_submission.csv
 train.csv
 logs/
 output/
+predictions_2d_conv/
