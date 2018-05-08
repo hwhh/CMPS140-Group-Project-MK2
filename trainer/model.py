@@ -1,5 +1,6 @@
 import librosa
 import numpy as np
+import os
 from keras import Input, optimizers, losses
 from keras import backend as K
 from keras import models
@@ -8,13 +9,14 @@ from keras.backend import softmax
 from keras.layers import (Convolution2D, BatchNormalization, Flatten,
                           MaxPool2D, Activation)
 from keras.layers import Dense
+from tensorflow.python.lib.io import file_io
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import tag_constants, signature_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
 
-
-# from sklearn.cross_validation import StratifiedKFold
-# Python2/3 compatibility imports
+import io
+import soundfile as sf
+from urllib2 import urlopen
 
 
 # The layers of the nureal network
@@ -71,30 +73,42 @@ def to_savedmodel(model, export_path):
         )
         builder.save()
 
+def copy_file_to_gcs(job_dir, file_path):
+    with file_io.FileIO(file_path, mode='r') as input_f:
+        with file_io.FileIO(os.path.join(job_dir, file_path), mode='w+') as output_f:
+            output_f.write(input_f.read())
+
+
 
 def prepare_data(df, config, data_dir):
     x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
     input_length = config.audio_length
     for i, fname in enumerate(df.index):
         file_path = data_dir + fname
-        data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
+        with file_io.FileIO(file_path, mode='r') as input_f:
 
-        # Random offset / Padding
-        if len(data) > input_length:
-            max_offset = len(data) - input_length
-            offset = np.random.randint(max_offset)
-            data = data[offset:(input_length + offset)]
-        else:
-            if input_length > len(data):
-                max_offset = input_length - len(data)
+            # url = data_dir + fname
+            data, samplerate = sf.read(input_f)
+            data = data.T
+            data = librosa.resample(data, samplerate, config.sampling_rate)
+            # data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
+
+            # Random offset / Padding
+            if len(data) > input_length:
+                max_offset = len(data) - input_length
                 offset = np.random.randint(max_offset)
+                data = data[offset:(input_length + offset)]
             else:
-                offset = 0
-            data = np.pad(data, (offset, input_length - len(data) - offset), "constant")
+                if input_length > len(data):
+                    max_offset = input_length - len(data)
+                    offset = np.random.randint(max_offset)
+                else:
+                    offset = 0
+                data = np.pad(data, (offset, input_length - len(data) - offset), "constant")
 
-        data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
-        data = np.expand_dims(data, axis=-1)
-        x[i, ] = data
+            data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
+            data = np.expand_dims(data, axis=-1)
+            x[i,] = data
     return x
 
 

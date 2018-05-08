@@ -6,28 +6,23 @@ import pandas as pd
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.utils import to_categorical
 from sklearn.model_selection import StratifiedKFold
-from tensorflow.python.lib.io import file_io
 
 from trainer.config import Config
 from trainer.model import *
 
 from tensorflow.python.lib.io import file_io
 from pandas.compat import StringIO
-import pandas as pd
 
 
-# FILE_PATH = 'checkpoint.{epoch:02d}.hdf5'
+PREDICTION_FOLDER = "predictions_2d_conv"
 
 
 def run(config):
-    # checkpoint_path = 'best_%d.h5'
-
     file_stream = file_io.FileIO(config.test_csv[0], mode='r')
     test = pd.read_csv(StringIO(file_stream.read()))
 
     file_stream = file_io.FileIO(config.train_csv[0], mode='r')
     train = pd.read_csv(StringIO(file_stream.read()))
-
 
     LABELS = list(train.label.unique())
     label_idx = {label: i for i, label in enumerate(LABELS)}
@@ -82,25 +77,23 @@ def run(config):
         else:
             curr_model.save(os.path.join(config.job_dir, 'model_%d.h5' % i))
 
-        PREDICTION_FOLDER = 'predictions_2d_conv'
-        if not os.path.exists(PREDICTION_FOLDER):
-            os.mkdir(PREDICTION_FOLDER)
-        if os.path.exists('logs/' + PREDICTION_FOLDER):
-            shutil.rmtree('logs/' + PREDICTION_FOLDER)
+        # PREDICTION_FOLDER = 'gs://cmps140-model-1-mlengine/input/predictions_2d_conv/'
 
-        # Save train predictions
         predictions = curr_model.predict(X_train, batch_size=64, verbose=1)
-        np.save(PREDICTION_FOLDER + '/train_predictions_%d.npy' % i, predictions)
+        np.save('train_predictions_%d.npy' % i, predictions)
+        copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
 
         # Save test predictions
         predictions = curr_model.predict(X_test, batch_size=64, verbose=1)
-        np.save(PREDICTION_FOLDER + '/test_predictions_%d.npy' % i, predictions)
+        np.save('train_predictions_%d.npy' % i, predictions)
+        copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
 
         # Make a submission file
         top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
         predicted_labels = [' '.join(list(x)) for x in top_3]
         test['label'] = predicted_labels
-        test[['label']].to_csv(PREDICTION_FOLDER + '/predictions_%d.csv' % i)
+        test[['label']].to_csv('predictions_%d.csv' % i)
+        copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
 
         # Convert the Keras model to TensorFlow SavedModel
         to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
@@ -108,6 +101,9 @@ def run(config):
 
 def create_predictions(labels):
     pred_list = []
+    file_stream = file_io.FileIO(config.test_csv[0], mode='r')
+    # test = pd.read_csv(StringIO(file_stream.read()))
+
     for i in range(10):
         pred_list.append(np.load('./predictions_2d_conv/test_predictions_%d.npy' % i))
     for i in range(10):
@@ -131,11 +127,12 @@ def copy_file_to_gcs(job_dir, file_path):
 
 
 def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2):
-    config = Config(sampling_rate=44100, audio_duration=2, n_folds=2,
+    config = Config(sampling_rate=44100, audio_duration=2, n_folds=20,
                     learning_rate=learning_rate, use_mfcc=True, n_mfcc=40, train_csv=train_files,
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2
                     )
-    run(config)
+    # run(config)
+    create_predictions()
 
 
 if __name__ == '__main__':
@@ -170,3 +167,19 @@ if __name__ == '__main__':
 
     parse_args, unknown = parser.parse_known_args()
     create_config(**parse_args.__dict__)
+
+
+# gcloud ml-engine jobs submit training $JOB_NAME \
+#     --job-dir $OUTPUT_PATH \
+#     --runtime-version 1.4 \
+#     --module-name trainer.task \
+#     --package-path trainer/ \
+#     --region $REGION \
+#     --scale-tier STANDARD_1 \
+#     -- \
+#     --train-files $TRAIN_DATA \
+#     --eval-files $EVAL_DATA \
+#     --user_arg_1 $TRAIN_DIR \
+#     --user_arg_2 $TEST_DIR \
+#     --learning-rate 0.001 \
+#     --verbosity DEBUG
