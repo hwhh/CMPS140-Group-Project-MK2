@@ -13,7 +13,6 @@ from trainer.model import *
 from tensorflow.python.lib.io import file_io
 from pandas.compat import StringIO
 
-
 PREDICTION_FOLDER = "predictions_2d_conv"
 
 
@@ -77,8 +76,6 @@ def run(config):
         else:
             curr_model.save(os.path.join(config.job_dir, 'model_%d.h5' % i))
 
-        # PREDICTION_FOLDER = 'gs://cmps140-model-1-mlengine/input/predictions_2d_conv/'
-
         predictions = curr_model.predict(X_train, batch_size=64, verbose=1)
         np.save('train_predictions_%d.npy' % i, predictions)
         copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
@@ -99,25 +96,34 @@ def run(config):
         to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
 
 
-def create_predictions(labels):
+def create_predictions(config):
+    file_stream = file_io.FileIO(config.train_csv[0], mode='r')
+    train = pd.read_csv(StringIO(file_stream.read()))
+
+    LABELS = list(train.label.unique())
+
     pred_list = []
-    file_stream = file_io.FileIO(config.test_csv[0], mode='r')
-    # test = pd.read_csv(StringIO(file_stream.read()))
 
     for i in range(10):
-        pred_list.append(np.load('./predictions_2d_conv/test_predictions_%d.npy' % i))
+        with file_io.FileIO(config.job_dir + '/test_predictions_%d.npy' % i, mode='r') as input_f:
+            pred_list.append(np.load(input_f))
     for i in range(10):
-        pred_list.append(np.load('./predictions_2d_conv/test_predictions_%d.npy' % i))
+        with file_io.FileIO(config.job_dir + '/test_predictions_%d.npy' % i, mode='r') as input_f:
+            pred_list.append(input_f)
     prediction = np.ones_like(pred_list[0])
     for pred in pred_list:
         prediction = prediction * pred
     prediction = prediction ** (1. / len(pred_list))
     # Make a submission file
-    top_3 = np.array(labels)[np.argsort(-prediction, axis=1)[:, :3]]
+    top_3 = np.array(LABELS)[np.argsort(-prediction, axis=1)[:, :3]]
     predicted_labels = [' '.join(list(x)) for x in top_3]
-    test = pd.read_csv('./input/sample_submission.csv')
+
+    file_stream = file_io.FileIO(config.test_csv[0], mode='r')
+    test = pd.read_csv(StringIO(file_stream.read()))
+
     test['label'] = predicted_labels
     test[['fname', 'label']].to_csv('1d_2d_ensembled_submission.csv', index=False)
+    copy_file_to_gcs(config.job_dir, '1d_2d_ensembled_submission.csv')
 
 
 def copy_file_to_gcs(job_dir, file_path):
@@ -127,12 +133,12 @@ def copy_file_to_gcs(job_dir, file_path):
 
 
 def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2):
-    config = Config(sampling_rate=44100, audio_duration=2, n_folds=20,
+    config = Config(sampling_rate=44100, audio_duration=2, n_folds=2,
                     learning_rate=learning_rate, use_mfcc=True, n_mfcc=40, train_csv=train_files,
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2
                     )
-    # run(config)
-    create_predictions()
+    run(config)
+    create_predictions(config)
 
 
 if __name__ == '__main__':
@@ -167,7 +173,6 @@ if __name__ == '__main__':
 
     parse_args, unknown = parser.parse_known_args()
     create_config(**parse_args.__dict__)
-
 
 # gcloud ml-engine jobs submit training $JOB_NAME \
 #     --job-dir $OUTPUT_PATH \

@@ -1,6 +1,8 @@
+import os
+
 import librosa
 import numpy as np
-import os
+import soundfile as sf
 from keras import Input, optimizers, losses
 from keras import backend as K
 from keras import models
@@ -14,14 +16,9 @@ from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import tag_constants, signature_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
 
-import io
-import soundfile as sf
-from urllib2 import urlopen
-
 
 # The layers of the nureal network
 def model_fn(config):
-    """Create a Keras Sequential model with layers."""
     nclass = config.n_classes
 
     inp = Input(shape=(config.dim[0], config.dim[1], 1))
@@ -73,11 +70,11 @@ def to_savedmodel(model, export_path):
         )
         builder.save()
 
+
 def copy_file_to_gcs(job_dir, file_path):
     with file_io.FileIO(file_path, mode='r') as input_f:
         with file_io.FileIO(os.path.join(job_dir, file_path), mode='w+') as output_f:
             output_f.write(input_f.read())
-
 
 
 def prepare_data(df, config, data_dir):
@@ -86,12 +83,9 @@ def prepare_data(df, config, data_dir):
     for i, fname in enumerate(df.index):
         file_path = data_dir + fname
         with file_io.FileIO(file_path, mode='r') as input_f:
-
-            # url = data_dir + fname
             data, samplerate = sf.read(input_f)
             data = data.T
-            data = librosa.resample(data, samplerate, config.sampling_rate)
-            # data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
+            data = librosa.resample(data, samplerate, config.sampling_rate, res_type="kaiser_fast")
 
             # Random offset / Padding
             if len(data) > input_length:
