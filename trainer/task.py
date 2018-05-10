@@ -31,8 +31,8 @@ def run(config):
     train['label_idx'] = train.label.apply(lambda elem: label_idx[elem])
 
     model_fn(config)
-    X_train = prepare_data(train, config, config.train_dir)  # TODO
-    X_test = prepare_data(test, config, config.test_dir)  # TODO
+    X_train = prepare_data(train, config, config.train_dir)
+    X_test = prepare_data(test, config, config.test_dir)
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
     X_train = normalize_data(X_train)
@@ -42,9 +42,6 @@ def run(config):
         os.makedirs(config.job_dir)
     except:
         pass
-
-    # if not config.job_dir.startswith('gs://'):
-    #     checkpoint_path = os.path.join(config.job_dir, checkpoint_path)
 
     skf = StratifiedKFold(n_splits=config.n_folds).split(np.zeros(len(train)), train.label_idx)
     for i, (train_split, val_split) in enumerate(skf):
@@ -82,8 +79,8 @@ def run(config):
 
         # Save test predictions
         predictions = curr_model.predict(X_test, batch_size=64, verbose=1)
-        np.save('train_predictions_%d.npy' % i, predictions)
-        copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
+        np.save('test_predictions_%d.npy' % i, predictions)
+        copy_file_to_gcs(config.job_dir, 'test_predictions_%d.npy' % i)
 
         # Make a submission file
         top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
@@ -104,12 +101,10 @@ def create_predictions(config):
 
     pred_list = []
 
-    for i in range(10):
+    for i in range(config.n_folds):
         with file_io.FileIO(config.job_dir + '/test_predictions_%d.npy' % i, mode='r') as input_f:
             pred_list.append(np.load(input_f))
-    for i in range(10):
-        with file_io.FileIO(config.job_dir + '/test_predictions_%d.npy' % i, mode='r') as input_f:
-            pred_list.append(input_f)
+
     prediction = np.ones_like(pred_list[0])
     for pred in pred_list:
         prediction = prediction * pred
@@ -133,7 +128,7 @@ def copy_file_to_gcs(job_dir, file_path):
 
 
 def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2):
-    config = Config(sampling_rate=44100, audio_duration=2, n_folds=2,
+    config = Config(sampling_rate=44100, audio_duration=2, n_folds=10,
                     learning_rate=learning_rate, use_mfcc=True, n_mfcc=40, train_csv=train_files,
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2
                     )

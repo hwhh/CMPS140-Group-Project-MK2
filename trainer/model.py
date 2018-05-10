@@ -21,6 +21,7 @@ from tensorflow.python.saved_model.signature_def_utils_impl import predict_signa
 def model_fn(config):
     nclass = config.n_classes
 
+
     inp = Input(shape=(config.dim[0], config.dim[1], 1))
     x = Convolution2D(32, (4, 10), padding="same")(inp)
     x = BatchNormalization()(x)
