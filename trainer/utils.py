@@ -3,57 +3,14 @@ import os
 import librosa
 import numpy as np
 import soundfile as sf
-from keras import Input, optimizers, losses
 from keras import backend as K
-from keras import models
-from keras.activations import softmax
-from keras.backend import softmax
-from keras.layers import (Convolution2D, BatchNormalization, Flatten,
-                          MaxPool2D, Activation)
-from keras.layers import Dense
+from tensorflow.python.framework.errors_impl import NotFoundError
+
 from tensorflow.python.lib.io import file_io
+from tensorflow.python.lib.io.file_io import stat
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import tag_constants, signature_constants
 from tensorflow.python.saved_model.signature_def_utils_impl import predict_signature_def
-
-
-# The layers of the nureal network
-def model_fn(config):
-    nclass = config.n_classes
-
-
-    inp = Input(shape=(config.dim[0], config.dim[1], 1))
-    x = Convolution2D(32, (4, 10), padding="same")(inp)
-    x = BatchNormalization()(x)
-    x = Activation("relu")(x)
-    x = MaxPool2D()(x)
-
-    x = Convolution2D(32, (4, 10), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = Activation("relu")(x)
-    x = MaxPool2D()(x)
-
-    x = Convolution2D(32, (4, 10), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = Activation("relu")(x)
-    x = MaxPool2D()(x)
-
-    x = Convolution2D(32, (4, 10), padding="same")(x)
-    x = BatchNormalization()(x)
-    x = Activation("relu")(x)
-    x = MaxPool2D()(x)
-
-    x = Flatten()(x)
-    x = Dense(64)(x)
-    x = BatchNormalization()(x)
-    x = Activation("relu")(x)
-    out = Dense(nclass, activation=softmax)(x)
-
-    model = models.Model(inputs=inp, outputs=out)
-
-    opt = optimizers.Adam(config.learning_rate)
-    model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
-    return model
 
 
 def to_savedmodel(model, export_path):
@@ -78,15 +35,31 @@ def copy_file_to_gcs(job_dir, file_path):
             output_f.write(input_f.read())
 
 
+def is_file_available(filepath):
+    try:
+        return stat(filepath)
+    except NotFoundError as e:
+        return False
+
+
 def prepare_data(df, config, data_dir):
-    x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
-    input_length = config.audio_length
-    for i, fname in enumerate(df.index):
-        file_path = data_dir + fname
-        with file_io.FileIO(file_path, mode='r') as input_f:
-            data, samplerate = sf.read(input_f)
-            data = data.T
-            data = librosa.resample(data, samplerate, config.sampling_rate, res_type="kaiser_fast")
+    if config.job_dir.startswith('gs://') and is_file_available(data_dir + 'input_arr.npy'):
+        with file_io.FileIO(data_dir + 'input_arr.npy', mode='r') as input_f:
+            return np.load(input_f)
+    elif not config.job_dir.startswith('gs://') and os.path.exists(os.path.join(data_dir, 'input_arr.npy')):
+        return np.load(os.path.join(data_dir, 'input_arr.npy'))
+    else:
+        x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
+        input_length = config.audio_length
+        for i, fname in enumerate(df.index):
+            file_path = data_dir + fname
+            if config.job_dir.startswith('gs://'):
+                with file_io.FileIO(file_path, mode='r') as input_f:
+                    data, samplerate = sf.read(input_f)
+                    data = data.T
+                    data = librosa.resample(data, samplerate, config.sampling_rate)
+            else:
+                data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
 
             # Random offset / Padding
             if len(data) > input_length:
@@ -103,8 +76,14 @@ def prepare_data(df, config, data_dir):
 
             data = librosa.feature.mfcc(data, sr=config.sampling_rate, n_mfcc=config.n_mfcc)
             data = np.expand_dims(data, axis=-1)
-            x[i,] = data
-    return x
+            x[i, ] = data
+        if config.job_dir.startswith('gs://'):
+            np.save('input_arr.npy', x)
+            copy_file_to_gcs(data_dir, 'input_arr.npy')
+        else:
+            np.save(os.path.join(data_dir, 'input_arr.npy'), x)
+
+        return x
 
 
 def normalize_data(input_dat):

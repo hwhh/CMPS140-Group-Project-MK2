@@ -1,27 +1,29 @@
 import argparse
-import os
-import shutil
 
 import pandas as pd
-from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
+from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, LambdaCallback
 from keras.utils import to_categorical
+from pandas.compat import StringIO
 from sklearn.model_selection import StratifiedKFold
 
 from trainer.config import Config
-from trainer.model import *
-
-from tensorflow.python.lib.io import file_io
-from pandas.compat import StringIO
+from trainer.basic_model import *
+from trainer.residual_model_old import model_fn_residual
+from trainer.residual_model import model_fn_residual
+from trainer.utils import *
 
 PREDICTION_FOLDER = "predictions_2d_conv"
 
 
 def run(config):
-    file_stream = file_io.FileIO(config.test_csv[0], mode='r')
-    test = pd.read_csv(StringIO(file_stream.read()))
-
-    file_stream = file_io.FileIO(config.train_csv[0], mode='r')
-    train = pd.read_csv(StringIO(file_stream.read()))
+    if config.job_dir.startswith('gs://'):
+        file_stream = file_io.FileIO(config.test_csv[0], mode='r')
+        test = pd.read_csv(StringIO(file_stream.read()))
+        file_stream = file_io.FileIO(config.train_csv[0], mode='r')
+        train = pd.read_csv(StringIO(file_stream.read()))
+    else:
+        test = pd.read_csv("../input/sample_submission.csv")
+        train = pd.read_csv("../input/train.csv")
 
     LABELS = list(train.label.unique())
     label_idx = {label: i for i, label in enumerate(LABELS)}
@@ -30,7 +32,8 @@ def run(config):
     test.set_index('fname', inplace=True)
     train['label_idx'] = train.label.apply(lambda elem: label_idx[elem])
 
-    model_fn(config)
+    # model_fn_residual(config)
+
     X_train = prepare_data(train, config, config.train_dir)
     X_test = prepare_data(test, config, config.test_dir)
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
@@ -55,12 +58,17 @@ def run(config):
 
         tb = TensorBoard(log_dir=os.path.join(config.job_dir, 'logs') + '/fold_%i' % i, write_graph=True)
 
+        # lm = LambdaCallback(
+        #     on_epoch_end=lambda epoch, logs: save_all_weights(curr_model, "checkpoint-{:05d}.h5".format(epoch)))
+
         callbacks_list = [checkpoint, early, tb]
 
         print('#' * 50)
         print('Fold: ', i)
 
-        curr_model = model_fn(config)
+        print(X.shape)
+
+        curr_model = model_fn_residual(config)
 
         curr_model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
                        batch_size=64, epochs=config.max_epochs)
@@ -74,20 +82,29 @@ def run(config):
             curr_model.save(os.path.join(config.job_dir, 'model_%d.h5' % i))
 
         predictions = curr_model.predict(X_train, batch_size=64, verbose=1)
-        np.save('train_predictions_%d.npy' % i, predictions)
-        copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
+        if config.job_dir.startswith("gs://"):
+            np.save('train_predictions_%d.npy' % i, predictions)
+            copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
+        else:
+            np.save(os.path.join(config.job_dir, 'train_predictions_%d.npy' % i), predictions)
 
         # Save test predictions
         predictions = curr_model.predict(X_test, batch_size=64, verbose=1)
-        np.save('test_predictions_%d.npy' % i, predictions)
-        copy_file_to_gcs(config.job_dir, 'test_predictions_%d.npy' % i)
+        if config.job_dir.startswith("gs://"):
+            np.save('test_predictions_%d.npy' % i, predictions)
+            copy_file_to_gcs(config.job_dir, 'test_predictions_%d.npy' % i)
+        else:
+            np.save(os.path.join(config.job_dir, 'test_predictions_%d.npy' % i), predictions)
 
         # Make a submission file
         top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
         predicted_labels = [' '.join(list(x)) for x in top_3]
         test['label'] = predicted_labels
-        test[['label']].to_csv('predictions_%d.csv' % i)
-        copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
+        if config.job_dir.startswith("gs://"):
+            test[['label']].to_csv('predictions_%d.csv' % i)
+            copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
+        else:
+            test[['label']].to_csv(os.path.join(config.job_dir, 'predictions_%d.csv' % i))
 
         # Convert the Keras model to TensorFlow SavedModel
         to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
@@ -117,8 +134,11 @@ def create_predictions(config):
     test = pd.read_csv(StringIO(file_stream.read()))
 
     test['label'] = predicted_labels
-    test[['fname', 'label']].to_csv('1d_2d_ensembled_submission.csv', index=False)
-    copy_file_to_gcs(config.job_dir, '1d_2d_ensembled_submission.csv')
+    if config.job_dir.startswith("gs://"):
+        test[['fname', 'label']].to_csv('1d_2d_ensembled_submission.csv', index=False)
+        copy_file_to_gcs(config.job_dir, '1d_2d_ensembled_submission.csv')
+    else:
+        test[['fname', 'label']].to_csv(os.path.join(config.job_dir, '1d_2d_ensembled_submission.csv'), index=False)
 
 
 def copy_file_to_gcs(job_dir, file_path):
@@ -135,6 +155,13 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
     run(config)
     create_predictions(config)
 
+
+# create_config('../input/train.csv',
+#               '../input/sample_submission.csv',
+#               './out',
+#               0.001,
+#               '../input/audio_train/',
+#               '../input/audio_test/')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
