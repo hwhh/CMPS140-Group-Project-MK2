@@ -1,3 +1,4 @@
+
 from keras import Input, optimizers, losses
 from keras import models
 from keras.activations import softmax
@@ -10,7 +11,6 @@ from keras.layers import Dense
 # The layers of the nureal network
 def model_fn_basic(config):
     nclass = config.n_classes
-
     inp = Input(shape=(config.dim[0], config.dim[1], 1))
     x = Convolution2D(32, (4, 10), padding="same")(inp)
     x = BatchNormalization()(x)

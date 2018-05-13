@@ -11,8 +11,10 @@ from trainer.basic_model import *
 from trainer.residual_model_old import model_fn_residual
 from trainer.residual_model import model_fn_residual
 from trainer.utils import *
+from keras.models import load_model
 
 PREDICTION_FOLDER = "predictions_2d_conv"
+
 
 
 def run(config):
@@ -68,12 +70,20 @@ def run(config):
 
         print(X.shape)
 
+        # load model from single file
+        model = load_model('../mfcc_resdiual_21-model_2.h5')
+        # make predictions
+        yhat = model.predict(X, verbose=0)
+        print(yhat)
+
+
         curr_model = model_fn_residual(config)
 
         curr_model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
                        batch_size=64, epochs=config.max_epochs)
 
         curr_model.load_weights(config.job_dir + '/best_%d.h5' % i)
+
 
         if config.job_dir.startswith('gs://'):
             curr_model.save('model_%d.h5' % i)
@@ -156,45 +166,45 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
     create_predictions(config)
 
 
-# create_config('../input/train.csv',
-#               '../input/sample_submission.csv',
-#               './out',
-#               0.001,
-#               '../input/audio_train/',
-#               '../input/audio_test/')
+create_config('../input/train.csv',
+              '../input/sample_submission.csv',
+              './out',
+              0.001,
+              '../input/audio_train/',
+              '../input/audio_test/')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--train-files',
-                        required=True,
-                        type=str,
-                        help='Training files local or GCS', nargs='+')
-    parser.add_argument('--eval-files',
-                        required=True,
-                        type=str,
-                        help='Evaluation files local or GCS', nargs='+')
-    parser.add_argument('--job-dir',
-                        required=True,
-                        type=str,
-                        help='GCS or local dir to write checkpoints and export model')
-    parser.add_argument('--learning-rate',
-                        type=float,
-                        default=0.003,
-                        help='Learning rate for SGD')
-    parser.add_argument('--user_arg_1',
-                        required=True,
-                        type=str,
-                        help='Directory of audio train files '
-                        )
-    parser.add_argument('--user_arg_2',
-                        required=True,
-                        type=str,
-                        help='Directory of audio test files '
-                        )
-
-    parse_args, unknown = parser.parse_known_args()
-    create_config(**parse_args.__dict__)
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#
+#     parser.add_argument('--train-files',
+#                         required=True,
+#                         type=str,
+#                         help='Training files local or GCS', nargs='+')
+#     parser.add_argument('--eval-files',
+#                         required=True,
+#                         type=str,
+#                         help='Evaluation files local or GCS', nargs='+')
+#     parser.add_argument('--job-dir',
+#                         required=True,
+#                         type=str,
+#                         help='GCS or local dir to write checkpoints and export model')
+#     parser.add_argument('--learning-rate',
+#                         type=float,
+#                         default=0.003,
+#                         help='Learning rate for SGD')
+#     parser.add_argument('--user_arg_1',
+#                         required=True,
+#                         type=str,
+#                         help='Directory of audio train files '
+#                         )
+#     parser.add_argument('--user_arg_2',
+#                         required=True,
+#                         type=str,
+#                         help='Directory of audio test files '
+#                         )
+#
+#     parse_args, unknown = parser.parse_known_args()
+#     create_config(**parse_args.__dict__)
 
 # gcloud ml-engine jobs submit training $JOB_NAME \
 #     --job-dir $OUTPUT_PATH \

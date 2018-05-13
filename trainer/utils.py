@@ -43,11 +43,13 @@ def is_file_available(filepath):
 
 
 def prepare_data(df, config, data_dir):
-    if config.job_dir.startswith('gs://') and is_file_available(data_dir + 'input_arr.npy'):
-        with file_io.FileIO(data_dir + 'input_arr.npy', mode='r') as input_f:
-            return np.load(input_f)
-    elif not config.job_dir.startswith('gs://') and os.path.exists(os.path.join(data_dir, 'input_arr.npy')):
-        return np.load(os.path.join(data_dir, 'input_arr.npy'))
+    if False:
+        pass
+    # if config.job_dir.startswith('gs://') and is_file_available(data_dir + 'input_arr.npy'):
+    #     with file_io.FileIO(data_dir + 'input_arr.npy', mode='r') as input_f:
+    #         return np.load(input_f)
+    # elif not config.job_dir.startswith('gs://') and os.path.exists(os.path.join(data_dir, 'input_arr.npy')):
+    #     return np.load(os.path.join(data_dir, 'input_arr.npy'))
     else:
         x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
         input_length = config.audio_length
