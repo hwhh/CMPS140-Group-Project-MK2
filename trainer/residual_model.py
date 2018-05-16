@@ -251,12 +251,15 @@ class ResnetBuilder(object):
     def build_resnet_152(input_shape, num_outputs, config):
         return ResnetBuilder.build(input_shape, num_outputs, bottleneck, [3, 8, 36, 3], config)
 
-#(173, 1, 40)
+
+# (173, 1, 40)
 def model_fn_residual(config):
-    model = ResnetBuilder.build_resnet_50((1,1,1), config.n_classes, config)
+    if config.model_level == 1:
+        model = ResnetBuilder.build_resnet_50((1, 1, 1), config.n_classes, config)
+    elif config.model_level == 2:
+        model = ResnetBuilder.build_resnet_101((1, 1, 1), config.n_classes, config)
+    else:
+        model = ResnetBuilder.build_resnet_152((1, 1, 1), config.n_classes, config)
     opt = optimizers.Adam(config.learning_rate)
     model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
     return model
-
-
-

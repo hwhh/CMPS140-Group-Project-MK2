@@ -4,9 +4,12 @@ import librosa
 import numpy as np
 from keras.models import load_model
 
-import os
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+LABELS = ['Hi-hat', 'Saxophone', 'Trumpet', 'Glockenspiel', 'Cello', 'Knock', 'Gunshot_or_gunfire', 'Clarinet',
+          'Computer_keyboard', 'Keys_jangling', 'Snare_drum', 'Writing', 'Laughter', 'Tearing', 'Fart', 'Oboe', 'Flute',
+          'Cough', 'Telephone', 'Bark', 'Chime', 'Bass_drum', 'Bus', 'Squeak', 'Scissors', 'Harmonica', 'Gong',
+          'Microwave_oven', 'Burping_or_eructation', 'Double_bass', 'Shatter', 'Fireworks', 'Tambourine', 'Cowbell',
+          'Electric_piano', 'Meow', 'Drawer_open_or_close', 'Applause', 'Acoustic_guitar', 'Violin_or_fiddle',
+          'Finger_snapping']
 
 
 def normalize_data(input_dat):
@@ -34,32 +37,17 @@ def process_audio_file():
     data = np.expand_dims(data, axis=-1)
 
     data = normalize_data(data)
-    # data = data[np.newaxis, ...]
+    data = data[np.newaxis, ...]
     return data
 
 
-# X = process_audio_file()
-# model = load_model('../mfcc_resdiual_21-model_2.h5')
-# yhat = model.predict(X, verbose=0)
-# print(yhat)
+def predict():
+    X = process_audio_file()
+    model = load_model('../model/mfcc_resdiual_21-model_2.h5')
+    predictions = model.predict(X, batch_size=64, verbose=1)
+    top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
+    predicted_labels = [' '.join(list(x)) for x in top_3]
+    print(predicted_labels)
 
-# print(json.dumps({"input": process_audio_file().tolist()}))
 
-x = [0.0038368015084415674, 0.00498126121237874, 0.34241732954978943, 0.0004900456988252699, 0.0028206747956573963,
-     0.03744399547576904, 0.013452275656163692, 3.0280185455922037e-05, 0.0010292797815054655, 0.0017782801296561956,
-     0.02276207134127617, 0.0034001385793089867, 0.0015485514886677265, 0.0004882702196482569, 0.015835274010896683,
-     0.0026223016902804375, 0.001943460083566606, 0.0005182517925277352, 0.006459018215537071, 0.00394971389323473,
-     0.0008023412665352225, 0.009913447313010693, 0.00039583357283845544, 0.045332953333854675, 0.0015668823616579175,
-     0.00013052560098003596, 0.327932745218277, 0.0008870949968695641, 0.0008640772430226207, 0.029977643862366676,
-     0.006315059959888458, 0.056280605494976044, 0.013677951879799366, 0.0010627773590385914, 0.007754478137940168,
-     0.00042011638288386166, 0.0022167996503412724, 0.005968049168586731, 0.007246673107147217, 3.865496182697825e-05,
-     0.01340796984732151]
-big = -1
-pos = -1
-for (count, val) in enumerate(x):
-    if val > big:
-        big = val
-        pos = count
-
-print(big)
-print(pos)
+predict()

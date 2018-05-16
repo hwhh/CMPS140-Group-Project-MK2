@@ -4,7 +4,7 @@ trainingInput:
   workerType: complex_model_m_gpu
   hyperparameters:
     goal: MAXIMIZE
-    hyperparameterMetricTag: precision_at_1
+    hyperparameterMetricTag: accuracy
     maxTrials: 10
     maxParallelTrials: 4
     params:
@@ -13,3 +13,14 @@ trainingInput:
         minValue: 0.0001
         maxValue: 0.01
         scaleType: UNIT_REVERSE_LOG_SCALE
+      - parameterName: model_level
+        type: INTEGER
+        minValue: 1
+        maxValue: 3
+      - parameterName: n_mfcc
+        type: DISCRETE
+        discreteValues: [10, 20, 40]
+      - parameterName: audio_duration
+        type: DISCRETE
+        discreteValues: [1, 2, 4, 6]
+
