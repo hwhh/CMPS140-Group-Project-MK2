@@ -1,17 +1,14 @@
-import argparse
-
 import pandas as pd
-from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard, LambdaCallback
+import numpy as np
+from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.utils import to_categorical
 from pandas.compat import StringIO
 from sklearn.model_selection import StratifiedKFold
 
-from trainer.RNN_CNN_model import create_cnn_rnn_model
+from trainer.feature_extraction import prepare_data, normalize_data
+from trainer.models.RNN_CNN_Model import create_cnn_rnn_model
 from trainer.config import Config
-from trainer.basic_model import *
-from trainer.residual_model import model_fn_residual
 from trainer.utils import *
-from keras.models import load_model
 
 PREDICTION_FOLDER = "predictions_2d_conv"
 
@@ -39,8 +36,8 @@ def run(config):
     X_test = prepare_data(test, config, config.test_dir)
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
-    # X_train = normalize_data(X_train)
-    # X_test = normalize_data(X_test)
+    X_train = normalize_data(X_train)
+    X_test = normalize_data(X_test)
 
     try:
         os.makedirs(config.job_dir)
@@ -98,7 +95,6 @@ def run(config):
             copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
         else:
             test[['label']].to_csv(os.path.join(config.job_dir, 'predictions_%d.csv' % i))
-
         # Convert the Keras model to TensorFlow SavedModel
         to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
 
