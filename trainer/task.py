@@ -6,6 +6,7 @@ from keras.utils import to_categorical
 from pandas.compat import StringIO
 from sklearn.model_selection import StratifiedKFold
 
+from trainer.RNN_CNN_model import create_cnn_rnn_model
 from trainer.config import Config
 from trainer.basic_model import *
 from trainer.residual_model import model_fn_residual
@@ -38,8 +39,8 @@ def run(config):
     X_test = prepare_data(test, config, config.test_dir)
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
-    X_train = normalize_data(X_train)
-    X_test = normalize_data(X_test)
+    # X_train = normalize_data(X_train)
+    # X_test = normalize_data(X_test)
 
     try:
         os.makedirs(config.job_dir)
@@ -60,7 +61,7 @@ def run(config):
         print('#' * 50)
         print('Fold: ', i)
 
-        curr_model = model_fn_residual(config)
+        curr_model = create_cnn_rnn_model(config)
 
         curr_model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
                        batch_size=64, epochs=config.max_epochs)
@@ -148,75 +149,59 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
     create_predictions(config)
 
 
-# create_config('../input/train.csv',
-#               '../input/sample_submission.csv',
-#               './out',
-#               0.001,
-#               '../input/audio_train/',
-#               '../input/audio_test/')
+create_config('../input/train.csv',
+              '../input/sample_submission.csv',
+              './out',
+              0.001,
+              '../input/audio_train/',
+              '../input/audio_test/',
+              1,
+              40,
+              2
+              )
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('--train-files',
-                        required=True,
-                        type=str,
-                        help='Training files local or GCS', nargs='+')
-    parser.add_argument('--eval-files',
-                        required=True,
-                        type=str,
-                        help='Evaluation files local or GCS', nargs='+')
-    parser.add_argument('--job-dir',
-                        required=True,
-                        type=str,
-                        help='GCS or local dir to write checkpoints and export model')
-    parser.add_argument('--learning-rate',
-                        type=float,
-                        default=0.003,
-                        help='Learning rate for SGD')
-    parser.add_argument('--model_level',
-                        type=int,
-                        default=2,
-                        help='Which resnet model to use')
-    # parser.add_argument('--validated_labels_only',
-    #                     type=int,
-    #                     default=0,
-    #                     help='Use only verified labels only')
-    parser.add_argument('--n_mfcc',
-                        type=int,
-                        default=40,
-                        help='nfcc')
-    parser.add_argument('--audio_duration',
-                        type=int,
-                        default=2,
-                        help='Audio duration')
-
-
-    parser.add_argument('--user_arg_1',
-                        required=True,
-                        type=str,
-                        help='Directory of audio train files '
-                        )
-    parser.add_argument('--user_arg_2',
-                        required=True,
-                        type=str,
-                        help='Directory of audio test files '
-                        )
-
-    parse_args, unknown = parser.parse_known_args()
-    create_config(**parse_args.__dict__)
-
-# gcloud ml-engine jobs submit training $JOB_NAME \
-#     --job-dir $OUTPUT_PATH \
-#     --runtime-version 1.4 \
-#     --module-name trainer.task \
-#     --package-path trainer/ \
-#     --region $REGION \
-#     --scale-tier STANDARD_1 \
-#     -- \
-#     --train-files $TRAIN_DATA \
-#     --eval-files $EVAL_DATA \
-#     --user_arg_1 $TRAIN_DIR \
-#     --user_arg_2 $TEST_DIR \
-#     --learning-rate 0.001 \
-#     --verbosity DEBUG
+# if __name__ == '__main__':
+#     parser = argparse.ArgumentParser()
+#
+#     parser.add_argument('--train-files',
+#                         required=True,
+#                         type=str,
+#                         help='Training files local or GCS', nargs='+')
+#     parser.add_argument('--eval-files',
+#                         required=True,
+#                         type=str,
+#                         help='Evaluation files local or GCS', nargs='+')
+#     parser.add_argument('--job-dir',
+#                         required=True,
+#                         type=str,
+#                         help='GCS or local dir to write checkpoints and export model')
+#     parser.add_argument('--learning-rate',
+#                         type=float,
+#                         default=0.003,
+#                         help='Learning rate for SGD')
+#     parser.add_argument('--model_level',
+#                         type=int,
+#                         default=2,
+#                         help='Which resnet model to use')
+#     parser.add_argument('--n_mfcc',
+#                         type=int,
+#                         default=40,
+#                         help='nfcc')
+#     parser.add_argument('--audio_duration',
+#                         type=int,
+#                         default=2,
+#                         help='Audio duration')
+#     parser.add_argument('--user_arg_1',
+#                         required=True,
+#                         type=str,
+#                         help='Directory of audio train files '
+#                         )
+#     parser.add_argument('--user_arg_2',
+#                         required=True,
+#                         type=str,
+#                         help='Directory of audio test files '
+#                         )
+#
+#     parse_args, unknown = parser.parse_known_args()
+#     create_config(**parse_args.__dict__)
+#
