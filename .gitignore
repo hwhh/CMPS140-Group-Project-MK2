@@ -112,4 +112,6 @@ train.csv
 logs/
 output/
 predictions_2d_conv/
-/model
+/models
+trainer/out/
+trainer_1/out/

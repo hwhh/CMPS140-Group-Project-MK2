@@ -1,14 +1,14 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
-from keras.utils import to_categorical
 from pandas.compat import StringIO
 from sklearn.model_selection import StratifiedKFold
+from keras.utils import to_categorical
 
-from trainer.feature_extraction import prepare_data, normalize_data
-from trainer.models.RNN_CNN_Model import create_cnn_rnn_model
 from trainer.config import Config
+from trainer.models.FCN_Model import model_fn_aes, model_fn_vgg16_16s
 from trainer.utils import *
+from keras_fcn import FCN
 
 PREDICTION_FOLDER = "predictions_2d_conv"
 
@@ -30,18 +30,22 @@ def run(config):
     test.set_index('fname', inplace=True)
     train['label_idx'] = train.label.apply(lambda elem: label_idx[elem])
 
-    # model_fn_residual(config)
+    # X_train = prepare_data(train, config, config.train_dir, save_load=False)
+    # X_test = prepare_data(test, config, config.test_dir, save_load=False)
 
-    X_train = prepare_data(train, config, config.train_dir)
-    X_test = prepare_data(test, config, config.test_dir)
+    tr_sub_dirs = ['audio_train/']
+    X_train, tr_labels = prepare_data_window('../input/', tr_sub_dirs, train['label_idx'])
+
+    ts_sub_dirs = ['audio_test/']
+    X_test, ts_labels = prepare_data_window('../input/', ts_sub_dirs, None)
+
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
-
     X_train = normalize_data(X_train)
     X_test = normalize_data(X_test)
 
     try:
         os.makedirs(config.job_dir)
-    except:
+    except OSError:
         pass
 
     skf = StratifiedKFold(n_splits=config.n_folds).split(np.zeros(len(train)), train.label_idx)
@@ -58,10 +62,16 @@ def run(config):
         print('#' * 50)
         print('Fold: ', i)
 
-        curr_model = create_cnn_rnn_model(config)
+        curr_model = FCN(input_shape=config.dim, classes=config.n_classes)
+        curr_model.compile(optimizer='rmsprop',
+                           loss='categorical_crossentropy',
+                           metrics=['accuracy'])
 
-        curr_model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list,
-                       batch_size=64, epochs=config.max_epochs)
+        # curr_model.fit(X, y_train, batch_size=1)
+        # curr_model = model_fn_vgg16_16s(config)
+        # curr_model.fit(X_train, y_train, batch_size=1)
+
+        curr_model.fit(X, y, validation_data=(X_val, y_val), callbacks=callbacks_list, batch_size=64, epochs=config.max_epochs)
 
         curr_model.load_weights(config.job_dir + '/best_%d.h5' % i)
 
@@ -95,7 +105,7 @@ def run(config):
             copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
         else:
             test[['label']].to_csv(os.path.join(config.job_dir, 'predictions_%d.csv' % i))
-        # Convert the Keras model to TensorFlow SavedModel
+        # Convert the Keras models to TensorFlow SavedModel
         to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
 
 
@@ -136,7 +146,8 @@ def copy_file_to_gcs(job_dir, file_path):
             output_f.write(input_f.read())
 
 
-def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2, model_level, n_mfcc, audio_duration):
+def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2, model_level, n_mfcc,
+                  audio_duration):
     config = Config(sampling_rate=44100, audio_duration=audio_duration, n_folds=10,
                     learning_rate=learning_rate, use_mfcc=True, n_mfcc=n_mfcc, train_csv=train_files,
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2,
@@ -170,7 +181,7 @@ create_config('../input/train.csv',
 #     parser.add_argument('--job-dir',
 #                         required=True,
 #                         type=str,
-#                         help='GCS or local dir to write checkpoints and export model')
+#                         help='GCS or local dir to write checkpoints and export models')
 #     parser.add_argument('--learning-rate',
 #                         type=float,
 #                         default=0.003,
@@ -178,7 +189,7 @@ create_config('../input/train.csv',
 #     parser.add_argument('--model_level',
 #                         type=int,
 #                         default=2,
-#                         help='Which resnet model to use')
+#                         help='Which resnet models to use')
 #     parser.add_argument('--n_mfcc',
 #                         type=int,
 #                         default=40,

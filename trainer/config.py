@@ -6,7 +6,7 @@ class Config(object):
                  sampling_rate=16000, audio_duration=2, n_classes=41,
                  use_mfcc=False, n_folds=10, learning_rate=0.0001,
                  max_epochs=50, n_mfcc=20, train_csv='', test_csv='', job_dir='',
-                 train_dir='', test_dir='', model_level=2, validated_labels_only=0):
+                 train_dir='', test_dir='', model_level=2, validated_labels_only=0, mels=96):
 
         self.sampling_rate = sampling_rate
         self.audio_duration = audio_duration
@@ -23,6 +23,7 @@ class Config(object):
         self.test_dir = test_dir
         self.validated_labels_only = validated_labels_only
         self.model_level = model_level
+        self.mels = mels
 
         self.audio_length = self.sampling_rate * self.audio_duration
         if self.use_mfcc:
@@ -30,3 +31,5 @@ class Config(object):
             self.dim = (128, 1 + int(np.floor(self.audio_length / 512)), 1)
         else:
             self.dim = (self.audio_length, 1)
+
+

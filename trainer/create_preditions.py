@@ -43,7 +43,7 @@ def process_audio_file():
 
 def predict():
     X = process_audio_file()
-    model = load_model('../model/mfcc_resdiual_21-model_2.h5')
+    model = load_model('../models/mfcc_resdiual_21-model_2.h5')
     predictions = model.predict(X, batch_size=64, verbose=1)
     top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
     predicted_labels = [' '.join(list(x)) for x in top_3]
