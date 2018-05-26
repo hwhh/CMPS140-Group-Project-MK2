@@ -10,17 +10,22 @@
 
 """
 
-from keras import Input, Model, losses
-from keras.layers import MaxPooling2D, Conv2D, Conv1D, Dropout, Flatten, GlobalAveragePooling2D
+from keras import Input, Model, losses, Sequential
+from keras.layers import Conv2D, Dropout, GlobalAveragePooling2D, Convolution2D, Activation, Dense
+from keras.layers import MaxPooling2D
 from keras.optimizers import Adam
 
 from trainer_2.models.BilinearUpSampling2D import BilinearUpSampling2D
+from trainer_3.SpatialPyramidPooling import SpatialPyramidPooling
 
 
 def model_fn_aes(config):
-    inp = Input(shape=(1, None, None))
-    x = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(inp)
-    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(inp)
+    inp = Input(shape=(None, None, 1))
+    # Block 1
+    x = Conv2D(32, (3, 3), strides=(1, 1), activation='relu', padding='same', name='block1_conv1')(inp)
+
+    # inp = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu', input_shape=(None, None, 1))
+    x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
 
     x = Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
@@ -40,9 +45,7 @@ def model_fn_aes(config):
     x = Dropout(0.5)(x)
     x = Conv2D(config.n_classes, kernel_size=(1, 1), strides=(1, 1), padding="valid", activation='sigmoid')(x)
 
-    x = GlobalAveragePooling2D(config.n_classes, )
-
-    x = BilinearUpSampling2D()(x)
+    x = GlobalAveragePooling2D(data_format='channels_last')(x)
 
     model = Model(inputs=inp, outputs=x)
     opt = Adam(config.learning_rate)
@@ -52,10 +55,10 @@ def model_fn_aes(config):
 
 
 def model_fn_vgg16_16s(config):
-    input_shape = (config.dim[0], config.dim[1], 1)
-    image_size = input_shape[0:2]
+    # input_shape = (config.dim[0], config.dim[1], 1)
+    # image_size = input_shape[0:2]
 
-    inp = Input(shape=input_shape)
+    inp = Input(shape=(None, None, 1))
     # Block 1
     x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv1')(inp)
     x = Conv2D(64, (3, 3), activation='relu', padding='same', name='block1_conv2')(x)
@@ -90,10 +93,10 @@ def model_fn_vgg16_16s(config):
     x = Dropout(0.5)(x)
 
     # classifying layer
-    x = Conv2D(config.n_classes, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid',
+    x = Conv2D(41, (1, 1), kernel_initializer='he_normal', activation='linear', padding='valid',
                strides=(1, 1))(x)
 
-    x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
+    # x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
 
     model = Model(inp, x)
     opt = Adam(config.learning_rate)
@@ -101,34 +104,25 @@ def model_fn_vgg16_16s(config):
     return model
 
 
-# import numpy as np
-# from keras.models import Sequential
-# from keras.layers import Convolution2D, Activation, MaxPooling2D, Dense
-# from spp.SpatialPyramidPooling import SpatialPyramidPooling
-#
-# batch_size = 64
-# num_channels = 3
-# num_classes = 10
-#
-# model = Sequential()
-#
-# # uses theano ordering. Note that we leave the image size as None to allow multiple image sizes
-# model.add(Convolution2D(32, 3, 3, border_mode='same', input_shape=(3, None, None)))
-# model.add(Activation('relu'))
-# model.add(Convolution2D(32, 3, 3))
-# model.add(Activation('relu'))
-# model.add(MaxPooling2D(pool_size=(2, 2)))
-# model.add(Convolution2D(64, 3, 3, border_mode='same'))
-# model.add(Activation('relu'))
-# model.add(Convolution2D(64, 3, 3))
-# model.add(Activation('relu'))
-# model.add(SpatialPyramidPooling([1, 2, 4]))
-# model.add(Dense(num_classes))
-# model.add(Activation('softmax'))
-#
-# model.compile(loss='categorical_crossentropy', optimizer='sgd')
-#
-# # train on 64x64x3 images
-# model.fit(np.random.rand(batch_size, num_channels, 64, 64), np.zeros((batch_size, num_classes)))
-# # train on 32x32x3 images
-# model.fit(np.random.rand(batch_size, num_channels, 32, 32), np.zeros((batch_size, num_classes)))
+def model_vgg(config):
+    batch_size = 64
+    num_channels = 3
+    num_classes = 10
+
+    model = Sequential()
+
+    # uses theano ordering. Note that we leave the image size as None to allow multiple image sizes
+    model.add(Convolution2D(32, 3, 3, border_mode='same', input_shape=(3, None, None)))
+    model.add(Activation('relu'))
+    model.add(Convolution2D(32, 3, 3))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D(pool_size=(2, 2)))
+    model.add(Convolution2D(64, 3, 3, border_mode='same'))
+    model.add(Activation('relu'))
+    model.add(Convolution2D(64, 3, 3))
+    model.add(Activation('relu'))
+    model.add(SpatialPyramidPooling([1, 2, 4]))
+    model.add(Dense(num_classes))
+    model.add(Activation('softmax'))
+
+    return model.compile(loss='categorical_crossentropy', optimizer='sgd')
