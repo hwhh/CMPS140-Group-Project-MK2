@@ -11,7 +11,7 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
     --runtime-version 1.4 \
     --module-name trainer.task \
-    --package-path trainer/ \
+    --package-path trainer_1/ \
     --region $REGION \
     --config=config.yaml \
     -- \

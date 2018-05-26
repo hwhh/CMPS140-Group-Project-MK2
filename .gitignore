@@ -113,5 +113,5 @@ logs/
 output/
 predictions_2d_conv/
 /models
+trainer_2/out/
 trainer/out/
-trainer_1/out/

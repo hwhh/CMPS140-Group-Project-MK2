@@ -13,7 +13,7 @@ from PIL import Image
 from functools import partial
 from imageio import imwrite
 import multiprocessing as mp
-from trainer.config import Config
+from trainer_2.config import Config
 
 
 def make_phase_gram(mono_sig, sr, n_bins=128):
@@ -72,7 +72,7 @@ def find_max_shape(path, mono=False, sr=None, dur=None, clean=False):
     return max(s[0] for s in shapes), max(s[1] for s in shapes)
 
 
-def save_melgram(outfile, melgram, out_format='png'):
+def save_melgram(outfile, melgram, out_format='npy'):
     channels = melgram.shape[1]
     melgram = melgram.astype(np.float16)
     if (('jpeg' == out_format) or ('png' == out_format)) and (channels <= 4):
@@ -103,18 +103,18 @@ def convert_one_file(config, folder, file_name, max_shape, phase, out_format):
     use_shape[1] = min(shape[1], max_shape[1])
     padded_signal[:use_shape[0], :use_shape[1]] = signal[:use_shape[0], :use_shape[1]]
     layers = make_layered_melgram(padded_signal, sr, mels=config.mels, phase=phase)
-    outfile = config.job_dir + '/' + folder + '/' + file_name.rpartition('/')[2].strip('.wav') + '.' + out_format
+
+    outfile = config.job_dir + '/' + folder + '/' + file_name.rpartition('/')[2].replace('.wav', '') + '.' + out_format
     save_melgram(outfile, layers, out_format=out_format)
     return
 
 
 def preprocess_dataset(config, phase=False, out_format='npy'):
-    max_shape = (1, 1323000)
-    # max(find_max_shape(config.train_dir, mono=mono, sr=resample, dur=dur, clean=clean),
-    # find_max_shape(config.test_dir, mono=mono, sr=resample, dur=dur, clean=clean))
+    max_shape = max(find_max_shape(config.train_dir, mono=mono, sr=resample, dur=dur, clean=clean),
+                    find_max_shape(config.test_dir, mono=mono, sr=resample, dur=dur, clean=clean))
     sampleset_subdirs = ['audio_train/', 'audio_test/']
-    train_outpath = config.job_dir + "/audio_train_png/"
-    test_outpath = config.job_dir + "/audio_test_png/"
+    train_outpath = config.job_dir + "/audio_train/"
+    test_outpath = config.job_dir + "/audio_test/"
     if not os.path.exists(config.job_dir):
         os.mkdir(config.job_dir)
         os.mkdir(train_outpath)
@@ -122,7 +122,7 @@ def preprocess_dataset(config, phase=False, out_format='npy'):
     for sub_dir in sampleset_subdirs:
         files = glob.glob(os.path.join('../input/', sub_dir, '*.wav'))
         for i, file_name in enumerate(files):
-            convert_one_file(config, sub_dir.strip('/'), file_name, max_shape, phase, out_format)
+            convert_one_file(config, sub_dir.replace('/', ''), file_name, max_shape, phase, out_format)
     return
 
 
@@ -133,25 +133,3 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2,
                     model_level=model_level, validated_labels_only=1)
     preprocess_dataset(config)
-
-
-# create_config('../input/train.csv',
-#               '../input/sample_submission.csv',
-#               './out',
-#               0.001,
-#               '../input/audio_train/',
-#               '../input/audio_test/',
-#               1,
-#               40,
-#               2)
-
-
-def s:
-    f1 = glob.glob(os.path.join('./audio_test/' , '*.wav'))
-    f2 = glob.glob(os.path.join('../input/audio_test/', '*.wav'))
-    print(f1-f2)
-
-
-
-
-s

@@ -11,10 +11,10 @@
 """
 
 from keras import Input, Model, losses
-from keras.layers import MaxPooling2D, Conv2D, Conv1D, Dropout, Flatten
+from keras.layers import MaxPooling2D, Conv2D, Conv1D, Dropout, Flatten, GlobalAveragePooling2D
 from keras.optimizers import Adam
 
-from trainer.models.BilinearUpSampling2D import BilinearUpSampling2D
+from trainer_2.models.BilinearUpSampling2D import BilinearUpSampling2D
 
 
 def model_fn_aes(config):
@@ -39,8 +39,14 @@ def model_fn_aes(config):
 
     x = Dropout(0.5)(x)
     x = Conv2D(256, kernel_size=(4, 4), strides=(1, 1), padding="valid", activation='relu')(x)
+
+
     x = Dropout(0.5)(x)
     x = Conv2D(config.n_classes, kernel_size=(1, 1), strides=(1, 1), padding="valid", activation='sigmoid')(x)
+
+    x = GlobalAveragePooling2D(config.n_classes, )
+
+
     # x = BilinearUpSampling2D(target_size=tuple(image_size))(x)
 
     model = Model(inputs=inp, outputs=x)

@@ -155,3 +155,16 @@ def normalize_data(input_dat):
     mean = np.mean(input_dat, axis=0)
     std = np.std(input_dat, axis=0)
     return (input_dat - mean) / std
+
+
+def load_data(df, config, data_dir):
+    x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], config.dim[2]))
+    for i, fname in enumerate(df.index):
+        file_path = data_dir + fname.replace('.wav', '.npy')
+        if config.job_dir.startswith('gs://'):
+            with file_io.FileIO(file_path, mode='r') as input_f:
+                data = np.load(input_f)
+        else:
+            data = np.load(file_path)
+        x[i, ] = data
+    return x

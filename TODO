@@ -1,9 +1,15 @@
 FCN
 RNN
 CNN+RNN
+
 DBN
+VGG
+
+
 DWT and DCT
 
-Combine Models
+Ensemble Models
+
+Remove Outliers
 
 Urban Sound Datasets

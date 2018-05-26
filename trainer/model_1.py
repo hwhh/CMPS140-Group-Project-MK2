@@ -1,4 +1,5 @@
-from keras import backend as K
+from keras import backend as K, Input, models, losses, optimizers
+from keras.layers import Conv2D, BatchNormalization, Activation, MaxPooling2D, Dropout, Flatten, Dense
 
 
 def model_fn_vnn(X_shape, config, nb_layers=4):
@@ -8,12 +9,14 @@ def model_fn_vnn(X_shape, config, nb_layers=4):
     pool_size = (2, 2)  # size of pooling area for max pooling
     cl_dropout = 0.5  # conv. layer dropout
     dl_dropout = 0.6  # dense layer dropout
-    inp = Input(shape=X_shape[1], X_shape[2], X_shape[3])
+
+    input_shape = (X_shape[1], X_shape[2], X_shape[3])
+    inp = Input(shape=input_shape)
     x = Conv2D(nb_filters, kernel_size, padding='valid', input_shape=input_shape)(inp)
-    x = BatchNormalization(axis=1) (x)
+    x = BatchNormalization(axis=1)(x)
     x = Activation('relu')(x)
     for layer in range(nb_layers - 1):  # add more layers than just the first
-        x = Conv2D(nb_filters, kernel_size) (x)
+        x = Conv2D(nb_filters, kernel_size)(x)
         x = Activation('elu')(x)
         x = MaxPooling2D(pool_size=pool_size)(x)
         x = Dropout(cl_dropout)(x)
@@ -24,4 +27,8 @@ def model_fn_vnn(X_shape, config, nb_layers=4):
     x = Dropout(dl_dropout)(x)
     x = Dense(config.n_classes)(x)
     x = Activation("softmax")(x)
+
+    model = models.Model(inputs=inp, outputs=x)
+    opt = optimizers.Adam(config.learning_rate)
+    model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
     return model
