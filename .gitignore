@@ -110,8 +110,11 @@ input/
 sample_submission.csv
 train.csv
 logs/
+m
 output/
 predictions_2d_conv/
 /models
 trainer_2/out/
 trainer/out/
+trainer_3/pre_processed/
+models/
