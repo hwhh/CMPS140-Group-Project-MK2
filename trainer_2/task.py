@@ -24,7 +24,7 @@ def run(config):
         train = pd.read_csv(StringIO(file_stream.read()))
     else:
         test = pd.read_csv("../input/sample_submission.csv")
-        train = pd.read_csv("../input/train.csv")
+        train = pd.read_csv("../input/train_1.csv")
 
     LABELS = list(train.label.unique())
     label_idx = {label: i for i, label in enumerate(LABELS)}
@@ -35,8 +35,9 @@ def run(config):
 
     # model_fn_residual(config)
 
-    X_train = load_data(train, config, 'gs://cmps140-205021-mlengine/input_preprocessed/audio_train/') #TODO Shuffle
-    X_test = load_data(test, config, 'gs://cmps140-205021-mlengine/input_preprocessed/audio_test/')
+    X_train = prepare_data_fixed(train, config, '../input/audio_train_1/') #TODO Shuffle
+    # X_train = load_data(train, config, '../out/audio_train_1/') #TODO Shuffle
+    # X_test = load_data(test, config, '../out/audio_test/')
     y_train = to_categorical(train.label_idx, num_classes=config.n_classes)
 
 
@@ -45,7 +46,7 @@ def run(config):
     except:
         pass
 
-    skf = StratifiedKFold(n_splits=config.n_folds).split(np.zeros(len(train)), train.label_idx)
+    skf = StratifiedKFold(n_splits=config.n_folds).spli(np.zeros(len(train)), train.label_idx)
     for i, (train_split, val_split) in enumerate(skf):
         K.clear_session()
         X, y, X_val, y_val = X_train[train_split], y_train[train_split], X_train[val_split], y_train[val_split]
@@ -66,38 +67,38 @@ def run(config):
 
         curr_model.load_weights(config.job_dir + '/best_%d.h5' % i)
 
-        if config.job_dir.startswith('gs://'):
-            curr_model.save('model_%d.h5' % i)
-            copy_file_to_gcs(config.job_dir, 'model_%d.h5' % i)
-        else:
-            curr_model.save(os.path.join(config.job_dir, 'model_%d.h5' % i))
-
-        predictions = curr_model.predict(X_train, batch_size=64, verbose=1)
-        if config.job_dir.startswith("gs://"):
-            np.save('train_predictions_%d.npy' % i, predictions)
-            copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
-        else:
-            np.save(os.path.join(config.job_dir, 'train_predictions_%d.npy' % i), predictions)
-
-        # Save test predictions
-        predictions = curr_model.predict(X_test, batch_size=64, verbose=1)
-        if config.job_dir.startswith("gs://"):
-            np.save('test_predictions_%d.npy' % i, predictions)
-            copy_file_to_gcs(config.job_dir, 'test_predictions_%d.npy' % i)
-        else:
-            np.save(os.path.join(config.job_dir, 'test_predictions_%d.npy' % i), predictions)
-
-        # Make a submission file
-        top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
-        predicted_labels = [' '.join(list(x)) for x in top_3]
-        test['label'] = predicted_labels
-        if config.job_dir.startswith("gs://"):
-            test[['label']].to_csv('predictions_%d.csv' % i)
-            copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
-        else:
-            test[['label']].to_csv(os.path.join(config.job_dir, 'predictions_%d.csv' % i))
-        # Convert the Keras model to TensorFlow SavedModel
-        to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
+        # if config.job_dir.startswith('gs://'):
+        #     curr_model.save('model_%d.h5' % i)
+        #     copy_file_to_gcs(config.job_dir, 'model_%d.h5' % i)
+        # else:
+        #     curr_model.save(os.path.join(config.job_dir, 'model_%d.h5' % i))
+        #
+        # predictions = curr_model.predict(X_train, batch_size=64, verbose=1)
+        # if config.job_dir.startswith("gs://"):
+        #     np.save('train_predictions_%d.npy' % i, predictions)
+        #     copy_file_to_gcs(config.job_dir, 'train_predictions_%d.npy' % i)
+        # else:
+        #     np.save(os.path.join(config.job_dir, 'train_predictions_%d.npy' % i), predictions)
+        #
+        # # Save test predictions
+        # predictions = curr_model.predict(X_test, batch_size=64, verbose=1)
+        # if config.job_dir.startswith("gs://"):
+        #     np.save('test_predictions_%d.npy' % i, predictions)
+        #     copy_file_to_gcs(config.job_dir, 'test_predictions_%d.npy' % i)
+        # else:
+        #     np.save(os.path.join(config.job_dir, 'test_predictions_%d.npy' % i), predictions)
+        #
+        # # Make a submission file
+        # top_3 = np.array(LABELS)[np.argsort(-predictions, axis=1)[:, :3]]
+        # predicted_labels = [' '.join(list(x)) for x in top_3]
+        # test['label'] = predicted_labels
+        # if config.job_dir.startswith("gs://"):
+        #     test[['label']].to_csv('predictions_%d.csv' % i)
+        #     copy_file_to_gcs(config.job_dir, 'predictions_%d.csv' % i)
+        # else:
+        #     test[['label']].to_csv(os.path.join(config.job_dir, 'predictions_%d.csv' % i))
+        # # Convert the Keras model to TensorFlow SavedModel
+        # to_savedmodel(curr_model, os.path.join(config.job_dir, 'export_%d' % i))
 
 
 def create_predictions(config):

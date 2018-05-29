@@ -62,7 +62,7 @@ def find_max_shape(path, mono=False, sr=None, dur=None, clean=False):
             if '.wav' in filename:
                 file_path = os.path.join(dir_name, filename)
                 try:
-                    signal, sr = librosa.load(file_path, mono=mono, sr=sr)
+                    signal, sr = librosa.load(file_path, mono=mono, sr=16000)
                 except NoBackendError as e:
                     print("Could not open audio file {}".format(file_path))
                     raise e
@@ -110,8 +110,10 @@ def convert_one_file(config, folder, file_name, max_shape, phase, out_format):
 
 
 def preprocess_dataset(config, phase=False, out_format='npy'):
-    max_shape = max(find_max_shape(config.train_dir, mono=mono, sr=resample, dur=dur, clean=clean),
-                    find_max_shape(config.test_dir, mono=mono, sr=resample, dur=dur, clean=clean))
+    print("here")
+    max_shape = min(find_max_shape(config.train_dir, mono=True),
+                    find_max_shape(config.test_dir, mono=True))
+    print(max_shape)
     sampleset_subdirs = ['audio_train/', 'audio_test/']
     train_outpath = config.job_dir + "/audio_train/"
     test_outpath = config.job_dir + "/audio_test/"
@@ -133,3 +135,6 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2,
                     model_level=model_level, validated_labels_only=1)
     preprocess_dataset(config)
+
+create_config('../input/train.csv', '../input/sample_submission.csv', './out', 0.001, '../input/audio_train/',
+              '../input/audio_test/', 1, 40, 2)

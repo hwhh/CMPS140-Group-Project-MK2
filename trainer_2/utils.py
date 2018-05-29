@@ -65,7 +65,7 @@ def prepare_data_fixed(df, config, data_dir, save_load=False):
             os.path.join(data_dir, 'input_arr.npy')) and save_load:
         return np.load(os.path.join(data_dir, 'input_arr.npy'))
     else:
-        x = np.empty(shape=(df.shape[0], config.dim[0], config.dim[1], 1))
+        x = np.empty(shape=(df.shape[0], 128, 173, 1))
         input_length = config.audio_length
         for i, fname in enumerate(df.index):
             file_path = data_dir + fname
@@ -166,5 +166,5 @@ def load_data(df, config, data_dir):
                 data = np.load(input_f)
         else:
             data = np.load(file_path)
-        x[i, ] = data
+        x[i,] = data
     return x
