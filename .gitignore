@@ -114,6 +114,6 @@ m
 output/
 predictions_2d_conv/
 trainer_2/out/
-trainer/out/
+trainer_1/out/
 trainer_3/pre_processed/
 models/
