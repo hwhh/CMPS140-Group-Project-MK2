@@ -3,7 +3,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from trainer.config import Config
 from trainer.model_1 import model_fn_vnn
-from trainer.preprocess import extract_features, one_hot_encode, load_arrys
+from trainer.preprocess import extract_features, one_hot_encode
 from trainer.utils import *
 from trainer.utils import to_savedmodel
 
@@ -18,7 +18,7 @@ def run(config):
         train = pd.read_csv(StringIO(file_stream.read()))
     else:
         test = pd.read_csv("../input/sample_submission.csv")
-        train = pd.read_csv("../input/train.csv")
+        train = pd.read_csv("../input/train_1.csv")
 
     LABELS = list(train.label.unique())
     label_idx = {label: i for i, label in enumerate(LABELS)}
@@ -27,13 +27,14 @@ def run(config):
     test.set_index('fname', inplace=True)
     train['label_idx'] = train.label.apply(lambda elem: label_idx[elem])
 
-    # x_train, tr_labels, frames = extract_features(train, config, config.train_dir, '../input/audio_train_preprocessed', False)
+    x_train, tr_labels, frames = extract_features(train, config, config.train_dir,
+                                                  '../input/audio_train_1', False)
     # x_test, _, _ = extract_features(test, config, config.test_dir, '../input/audio_test_preprocessed', True)
 
-    load_arrys(train, '../input/audio_train_preprocessed/', False)
-    load_arrys(test, '../input/audio_test_preprocessed/', True)
+    # load_arrys(train, '../input/audio_train_preprocessed/', False)
+    # load_arrys(test, '../input/audio_test_preprocessed/', True)
 
-    tr_labels = None  # one_hot_encode(tr_labels, frames, np.unique(train.label_idx))
+    tr_labels = one_hot_encode(tr_labels, frames, np.unique(train.label_idx))
 
     skf = StratifiedKFold(n_splits=2).split(np.zeros(len(x_train)), frames)
     for i, (train_split, val_split) in enumerate(skf):
@@ -104,5 +105,5 @@ def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, u
     run(config)
 
 
-create_config('../input/train.csv', '../input/sample_submission.csv', './out', 0.001, '../input/audio_train/',
+create_config('../input/train.csv', '../input/sample_submission.csv', './out', 0.001, '../input/audio_train_1/',
               '../input/audio_test/', 1, 40, 2)
