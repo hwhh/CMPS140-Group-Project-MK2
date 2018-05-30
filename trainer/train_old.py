@@ -45,7 +45,7 @@ def run(config):
         checkpoint = ModelCheckpoint(config.job_dir + '/best_%d.h5' % i, monitor='val_loss', verbose=1,
                                      save_best_only=True)
         early = EarlyStopping(monitor='val_loss', mode='min', patience=5)
-        tb = TensorBoard(log_dir=np.os.path.join(config.job_dir, 'logs') + '/fold_%i' % i, write_graph=True)
+        tb = TensorBoard(log_dir=os.path.join(config.job_dir, 'logs') + '/fold_%i' % i, write_graph=True)
         callbacks_list = [checkpoint, early, tb]
 
         print(('Fold: %d' % i) + '\n' + '#' * 50)
