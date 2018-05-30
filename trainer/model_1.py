@@ -25,7 +25,7 @@ def model_fn_vnn(config, nb_layers=4):
     x = Dense(128)(x)  # 128 is 'arbitrary' for now
     x = Activation('elu')(x)
     x = Dropout(dl_dropout)(x)
-    x = Dense(12)(x)
+    x = Dense(config.n_classes)(x)
     x = Activation("softmax")(x)
 
     model = models.Model(inputs=inp, outputs=x)

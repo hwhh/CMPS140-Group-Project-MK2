@@ -2,7 +2,7 @@ import argparse
 import os
 
 from trainer.config import Config
-from trainer.train import run
+from trainer.test import run
 
 
 def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2, model_level, n_mfcc,
