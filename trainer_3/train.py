@@ -43,7 +43,8 @@ def run(config):
     print(model.summary())
     model.fit_generator(generator=training_generator,
                         validation_data=test_generator,
-                        use_multiprocessing=True,
+                        workers=1,
+                        # use_multiprocessing=True,
                         epochs=1)
 
     # x_train = prepare_data(train, config, '../input/audio_train_1/')
@@ -106,22 +107,14 @@ def run_2(config):
 #         curr_model = model_fn_basic(config)
 #
 #
-# def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2, model_level, n_mfcc,
-#                   audio_duration):
-#     config = Config(sampling_rate=44100, audio_duration=audio_duration, n_folds=10,
-#                     learning_rate=learning_rate, use_mfcc=True, n_mfcc=n_mfcc, train_csv=train_files,
-#                     test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2,
-#                     model_level=model_level, validated_labels_only=1)
-#     run(config)
-#
-#
-# create_config('../input/train.csv', '../input/sample_submission.csv', './out', 0.001, '../input/audio_train/',
-#               '../input/audio_test/', 1, 40, 2)
+def create_config(train_files, eval_files, job_dir, learning_rate, user_arg_1, user_arg_2, model_level, n_mfcc,
+                  audio_duration):
+    config = Config(sampling_rate=44100, audio_duration=audio_duration, n_folds=10,
+                    learning_rate=learning_rate, use_mfcc=True, n_mfcc=n_mfcc, train_csv=train_files,
+                    test_csv=eval_files, job_dir=job_dir, train_dir=user_arg_1, test_dir=user_arg_2,
+                    model_level=model_level, validated_labels_only=1)
+    run(config)
 
 
-plt.figure(figsize=(5, 4))
-audio, _ = librosa.core.load('../input/audio_train/0aad0a16.wav')
-S = librosa.feature.melspectrogram(y=audio)
-librosa.display.specshow(librosa.power_to_db(S), x_axis='time', y_axis='mel')
-plt.title('Gun Shot (DB Mel-Spectra)')
-plt.show()
+create_config('../input/train.csv', '../input/sample_submission.csv', './out', 0.001, '../input/audio_train/',
+              '../input/audio_test/', 1, 40, 2)

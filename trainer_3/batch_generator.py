@@ -10,6 +10,7 @@ from tensorflow.python.lib.io import file_io
 
 import matplotlib.pyplot as plt
 
+
 class DataGenerator(keras.utils.Sequence):
     """Generates data for Keras"""
 
@@ -30,9 +31,17 @@ class DataGenerator(keras.utils.Sequence):
 
     @staticmethod
     def normalize_data(input_dat):
-        mean = np.mean(input_dat, axis=0)
-        std = np.std(input_dat, axis=0)
-        return (input_dat - mean) / std
+        # Extracting single channels from 2 channel file
+        channel_1 = input_dat[:, :, :, 0]
+        channel_2 = input_dat[:, :, :, 1]
+        # normalizing per channel data:
+        channel_1 = (channel_1 - np.min(channel_1)) / (np.max(channel_1) - np.min(channel_1))
+        channel_2 = (channel_2 - np.min(channel_2)) / (np.max(channel_2) - np.min(channel_2))
+        # putting the 2 channels back together:
+        audio_norm = np.empty((input_dat.shape[0], input_dat.shape[1], input_dat.shape[2], 2), dtype=np.float32)
+        audio_norm[:, :, :, 0] = channel_1
+        audio_norm[:, :, :, 1] = channel_2
+        return audio_norm
 
     def __len__(self):
         """Denotes the number of batches per epoch"""
@@ -61,7 +70,7 @@ class DataGenerator(keras.utils.Sequence):
         """Generates data containing batch_size samples"""  # X : (n_samples, *dim, n_channels)
         # Generate data
         X, labels = self.extract_features(list_IDs_temp, self.data_dir)
-        return np.array(X), keras.utils.to_categorical(labels, num_classes=self.config.n_classes) # TODO
+        return np.array(X), keras.utils.to_categorical(labels, num_classes=self.config.n_classes)  # TODO
 
     def extract_features(self, df, data_dir, sr=44100, bands=128):
         X, labels = [], []
@@ -81,5 +90,5 @@ class DataGenerator(keras.utils.Sequence):
         features = np.concatenate((X2, np.zeros(np.shape(X2))), axis=3)
         for i in range(len(X2)):
             features[i, :, :, 1] = librosa.feature.delta(features[i, :, :, 0])
-
-        return np.array(X2), labels
+        features = self.normalize_data(features)
+        return np.array(features), labels
