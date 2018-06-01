@@ -15,27 +15,24 @@ from keras.layers import Conv2D, Dropout, GlobalAveragePooling2D, Convolution2D,
 from keras.layers import MaxPooling2D
 from keras.optimizers import Adam
 
-from trainer_2.models.BilinearUpSampling2D import BilinearUpSampling2D
 from trainer_3.SpatialPyramidPooling import SpatialPyramidPooling
 
 
 def model_fn_aes(config):
-    inp = Input(shape=(None, None, 1))
+    inp = Input(shape=(None, None, 2))
     # Block 1
     x = Conv2D(32, (3, 3), strides=(1, 1), activation='relu', padding='same', name='block1_conv1')(inp)
-
-    # inp = Conv2D(32, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu', input_shape=(None, None, 1))
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-
+    # Block 2
     x = Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-
+    # Block 3
     x = Conv2D(128, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-
+    # Block 4
     x = Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
-
+    # Block 5
     x = Conv2D(256, kernel_size=(3, 3), strides=(1, 1), padding='same', activation='relu')(x)
     x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
 
@@ -112,17 +109,18 @@ def model_vgg(config):
     model = Sequential()
 
     # uses theano ordering. Note that we leave the image size as None to allow multiple image sizes
-    model.add(Convolution2D(32, 3, 3, border_mode='same', input_shape=(3, None, None)))
+    model.add(Conv2D(32, (3, 3), input_shape=(None, None, 1), padding="same"))
     model.add(Activation('relu'))
-    model.add(Convolution2D(32, 3, 3))
+    model.add(Conv2D(32, (3, 3)))
     model.add(Activation('relu'))
     model.add(MaxPooling2D(pool_size=(2, 2)))
-    model.add(Convolution2D(64, 3, 3, border_mode='same'))
+    model.add(Conv2D(64, (3, 3), padding="same"))
     model.add(Activation('relu'))
-    model.add(Convolution2D(64, 3, 3))
+    model.add(Conv2D(64, (3, 3)))
     model.add(Activation('relu'))
     model.add(SpatialPyramidPooling([1, 2, 4]))
-    model.add(Dense(num_classes))
+    model.add(Dense(10))
     model.add(Activation('softmax'))
-
-    return model.compile(loss='categorical_crossentropy', optimizer='sgd')
+    opt = Adam(config.learning_rate)
+    model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+    return model

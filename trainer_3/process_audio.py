@@ -17,20 +17,18 @@ could flattern the array ?
 
 
 def prepare_data(df, config, data_dir, bands=128):
-    log_specgrams_2048 = []
+    log_specgrams_2048 = list()
     for i, fname in enumerate(df.index):
         file_path = data_dir + fname
         data, _ = librosa.core.load(file_path, sr=config.sampling_rate, res_type="kaiser_fast")
         melspec = librosa.feature.melspectrogram(data, sr=config.sampling_rate, n_mels=bands)
-        logspec = librosa.core.power_to_db(melspec)  # shape would be [128, your_audio_length]
-        logspec = logspec.T[..., np.newaxis]  # shape will be [128, your_audio_length, 1]
+        logspec = np.array(librosa.core.power_to_db(melspec), dtype=object)  # shape would be [128, your_audio_length]
+        logspec = logspec[..., np.newaxis]  # shape will be [128, your_audio_length, 1]
         log_specgrams_2048.append(logspec)
-    return np.array(log_specgrams_2048)
+    return log_specgrams_2048
 
 
 def normalize_data(input_dat):
     mean = np.mean(input_dat, axis=0)
     std = np.std(input_dat, axis=0)
     return (input_dat - mean) / std
-
-

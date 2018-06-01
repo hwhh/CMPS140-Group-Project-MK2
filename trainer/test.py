@@ -28,7 +28,7 @@ def run(config):
     train.set_index('fname', inplace=True)
     test.set_index('fname', inplace=True)
     train['label_idx'] = train.label.apply(lambda elem: label_idx[elem])
-    X_train, X_test, y_train, y_test = train_test_split(np.array(train.label_idx.keys()), train.label_idx,
+    X_train, X_test, y_train, y_test = train_test_split(np.array(train.label_idx.keys()), train.label_idx.values,
                                                         test_size=0.2)
     partition = {'train': X_train, 'test': X_test}
     training_generator = DataGenerator(config, partition['train'], train.label_idx, config.train_dir, 0)
@@ -36,9 +36,11 @@ def run(config):
 
     model = model_fn_vnn(config)
 
+
     checkpoint = ModelCheckpoint(config.job_dir + '/best.h5', monitor='val_loss', verbose=1, save_best_only=True)
     tb = TensorBoard(log_dir=os.path.join(config.job_dir, 'logs') + '/fold', write_graph=True)
     callbacks_list = [checkpoint, tb]
+
 
     model.fit_generator(generator=training_generator,
                         validation_data=test_generator,

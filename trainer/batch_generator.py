@@ -26,7 +26,7 @@ class DataGenerator(keras.utils.Sequence):
         self.on_epoch_end()
 
     @staticmethod
-    def one_hot_encode(labels, frames, unique_labels): #<class 'list'>: ['0a0a8d4c.wav', '0a6bba04.wav']
+    def one_hot_encode(labels, frames, unique_labels):  # <class 'list'>: ['0a0a8d4c.wav', '0a6bba04.wav']
         n_labels = len(frames)
         n_unique_labels = len(unique_labels)
         one_hot_encode = np.zeros((n_labels, n_unique_labels))
@@ -112,7 +112,7 @@ class DataGenerator(keras.utils.Sequence):
                     f.append(self.labels[fname])
             if self.type == 0:
                 labels.append(label)
-
+        print(log_specgrams)
         log_specgrams = np.asarray(log_specgrams).reshape(len(log_specgrams), bands, frames, 1)
         features = np.concatenate((log_specgrams, np.zeros(np.shape(log_specgrams))), axis=3)
         for i in range(len(features)):

@@ -1,17 +1,11 @@
-FCN
-RNN
+FCN -- DONE
+RNN -- DONE
 CNN+RNN
 
-DBN
-VGG
+VGG -- DONE
 
-DWT and DCT
 
 Ensemble Models
-Remove Outliers
 Confusion Graph
-Urban Sound Datasets
-
 Shuffle and Normalize
 
-Embeddings
