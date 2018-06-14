@@ -1,4 +1,3 @@
-BUCKET_NAME=cmps140-204319-mlengine
 OUTPUT_PATH=gs://$BUCKET_NAME/mfcc_single/logs/
 TRAIN_DIR=gs://$BUCKET_NAME/input/audio_train/
 TEST_DIR=gs://$BUCKET_NAME/input/audio_test/

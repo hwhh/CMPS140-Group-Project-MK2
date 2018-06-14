@@ -56,7 +56,7 @@ def run(config):
                         workers=multiprocessing.cpu_count(),
                         use_multiprocessing=True,
                         callbacks=callbacks_list,
-                        epochs=100)
+                        epochs=250)
 
     if config.job_dir.startswith('gs://'):
         model.save('model.h5')
@@ -93,7 +93,7 @@ def run_with_k_fold(config):
         training_generator = DataGenerator(config, partition['train'], train.label_idx, config.train_dir, 0)
         test_generator = DataGenerator(config, partition['test'], train.label_idx, config.train_dir, 0)
 
-        checkpoint = ModelCheckpoint(config.job_dir + '/best_%d.h5' % i, monitor='val_loss', verbose=1,
+        checkpoint = ModelCheckpoint(config.job_dir + 'best_%d.h5' % i, monitor='val_loss', verbose=1,
                                      save_best_only=True)
         early = EarlyStopping(monitor='val_loss', mode='min', patience=15)
         tb = TensorBoard(log_dir=os.path.join(config.job_dir, 'logs') + '/fold_%i' % i, write_graph=True)
